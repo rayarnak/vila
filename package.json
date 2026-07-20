@@ -1,0 +1,33 @@
+{
+  "name": "vila-protocol",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ZK Privacy Payment Protocol on Stellar — Shielded stablecoin transfers with Groth16 proofs on Soroban",
+  "workspaces": [
+    "sdk",
+    "relayer",
+    "app"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=app",
+    "build": "npm run build --workspace=sdk && npm run build --workspace=relayer && npm run build --workspace=app",
+    "build:sdk": "npm run build --workspace=sdk",
+    "build:relayer": "npm run build --workspace=relayer",
+    "build:app": "npm run build --workspace=app",
+    "relayer": "npm run start --workspace=relayer",
+    "setup:ceremony": "bash scripts/setup-ceremony.sh",
+    "compile:circuit": "bash scripts/compile-circuit.sh",
+    "deploy": "bash scripts/deploy.sh",
+    "demo": "bash scripts/demo.sh",
+    "demo:e2e": "npx tsx scripts/demo-e2e.ts",
+    "demo:interactive": "bash scripts/demo.sh 2",
+    "generate:proof": "npx tsx scripts/generate-test-proof.ts",
+    "generate:input": "npx tsx scripts/generate-valid-input.ts"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "dotenv": "^17.4.2"
+  }
+}
