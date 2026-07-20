@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+@layer base {
+  :root {
+    /* Bybit Pro Dark Trading Desk Theme */
+    --background: 218 22% 5.5%; /* #0b0e11 */
+    --foreground: 210 16% 93%;  /* #eaecef */
+    --card: 224 28% 10%;        /* #131722 */
+    --card-foreground: 210 16% 93%;
+    --popover: 224 28% 10%;
+    --popover-foreground: 210 16% 93%;
+    --primary: 38 100% 48%;     /* #f7a600 Bybit Amber */
+    --primary-foreground: 218 22% 5.5%;
+    --secondary: 222 21% 14%;   /* #1c212d */
+    --secondary-foreground: 210 16% 93%;
+    --muted: 222 21% 12%;       /* #181c25 */
+    --muted-foreground: 215 14% 56%; /* #848e9c */
+    --accent: 222 21% 15%;
+    --accent-foreground: 38 100% 48%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 213 15% 14%;      /* #1e2329 */
+    --input: 218 26% 8%;        /* #0f131a */
+    --ring: 38 100% 48%;        /* #f7a600 */
+    --radius: 0.5rem;
+  }
+
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background: #f7a600;
+    color: #0b0e11;
+  }
+}
+
+@layer utilities {
+  .bybit-gold {
+    color: #f7a600;
+  }
+  .bg-bybit-gold {
+    background-color: #f7a600;
+  }
+  .border-bybit {
+    border-color: #1e2329;
+  }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
