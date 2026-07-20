@@ -1,0 +1,37 @@
+node_modules/
+dist/
+.next/
+.env
+.env.local
+target/
+*.wasm
+!circuits/withdraw_js/withdraw.wasm
+
+# ZK ceremony artifacts (large binary files — regenerate via scripts/setup-ceremony.sh)
+circuits/build/*.ptau
+circuits/build/*.zkey
+circuits/build/*.r1cs
+circuits/build/*.sym
+circuits/build/withdraw_js/
+
+# Lock files
+package-lock.json
+circuits/package-lock.json
+
+# Soroban build
+contracts/*/target/
+*.d
+
+# IDE
+.vscode/
+.idea/
+
+# Commitment store (populated at runtime)
+.commitments.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Generated deploy artifact
+.env.pools
