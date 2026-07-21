@@ -4,6 +4,81 @@
 
 Vila enables shielded stablecoin transfers on Stellar using Groth16 ZK proofs verified on Soroban. Deposit XLM into a shielded pool, share a secret note with your recipient, and they withdraw privately — with zero on-chain link between depositor and recipient.
 
+## Integration Evidence (Wallet · Contracts · CI/CD)
+
+> Quick-reference map for reviewers. Every requirement below is implemented in tracked source files (paths given); code excerpts below are condensed from those files (imports/error-handling trimmed for readability).
+
+### 1. Stellar Wallet Integration — Freighter ✅
+
+- **Wallet library:** [`@stellar/freighter-api`](https://www.npmjs.com/package/@stellar/freighter-api) `^4.1.0` — declared in **`app/package.json`** (alongside `@stellar/stellar-sdk`).
+- **Connect Wallet button + flow:** **`app/src/components/ConnectWallet.tsx`** renders the `Connect Wallet` button (install-Freighter / disconnected / connected states) and is mounted in the app header (`app/src/components/AppShell.tsx`).
+- **Wallet permissions, address retrieval & transaction signing:** **`app/src/lib/freighter.ts`** wraps every required method — `setAllowed`, `requestAccess`, `getAddress`, `signTransaction`, `isConnected`, `getNetwork`.
+
+```ts
+// app/src/lib/freighter.ts
+import { setAllowed, requestAccess, getAddress, signTransaction } from "@stellar/freighter-api";
+
+// Connect: grant permission (setAllowed) then request the account (requestAccess).
+export async function connectFreighter(): Promise<string> {
+  const allowed = await setAllowed();                 // wallet permission
+  const access  = await requestAccess();              // address retrieval (prompts user)
+  return access.address;
+}
+
+// Sign a Soroban/Stellar transaction envelope (XDR) with Freighter.
+export async function signWithFreighter(xdr: string, networkPassphrase: string, address?: string) {
+  const res = await signTransaction(xdr, { networkPassphrase, address });
+  return res.signedTxXdr;                              // transaction signing
+}
+```
+
+```tsx
+// app/src/components/ConnectWallet.tsx  →  the Connect Wallet button
+<button onClick={handleConnect}>
+  <Wallet /> {connecting ? "Connecting…" : "Connect Wallet"}
+</button>
+```
+
+### 2. Smart-Contract Integration — `@stellar/stellar-sdk` ✅
+
+**`app/src/lib/soroban.ts`** is the canonical integration module. It builds contract invocations with `@stellar/stellar-sdk` and calls the **deployed** contract IDs (see [Deployment](#deployment)) over Soroban RPC:
+
+```ts
+// app/src/lib/soroban.ts
+import * as StellarSdk from "@stellar/stellar-sdk";
+
+export async function readContract(contractId, method, args = []) {
+  const server   = new StellarSdk.rpc.Server(RPC_URL);
+  const contract = new StellarSdk.Contract(contractId);           // deployed Soroban contract
+  const tx = new StellarSdk.TransactionBuilder(account, { fee: "100", networkPassphrase: NETWORK_PASSPHRASE })
+    .addOperation(contract.call(method, ...args))                 // invoke a contract pub fn
+    .setTimeout(30).build();
+  const sim = await server.simulateTransaction(tx);
+  return StellarSdk.scValToNative(sim.result.retval);
+}
+```
+
+### 3. Frontend ↔ Contract Function Mapping ✅
+
+Each frontend call maps 1:1 to a `pub fn` in the contract `lib.rs` sources:
+
+| Contract (`lib.rs`) | Contract `pub fn` | Frontend function | File |
+|---|---|---|---|
+| `vila-pool` | `deposit` | `executeDeposit()` | `app/src/lib/deposit.ts` |
+| `vila-pool` | `withdraw` | `executeWithdraw()` | `app/src/lib/withdraw.ts` |
+| `vila-pool` | `get_next_index` | `poolGetNextIndex()` | `app/src/lib/soroban.ts` |
+| `vila-pool` | `get_last_root` | `poolGetLastRoot()` | `app/src/lib/soroban.ts` |
+| `vila-pool` | `get_denomination` | `poolGetDenomination()` | `app/src/lib/soroban.ts` |
+| `vila-pool` | `is_spent` | `poolIsSpent()` | `app/src/lib/soroban.ts` |
+| `vila-pool` | `is_known_root` | `poolIsKnownRoot()` | `app/src/lib/soroban.ts` |
+| `groth16-verifier` | `num_public_inputs` | `verifierNumPublicInputs()` | `app/src/lib/soroban.ts` |
+| `swap-router` | `get_amount_out` | `swapGetAmountOut()` | `app/src/lib/soroban.ts` |
+
+### 4. CI/CD Workflows ✅
+
+- **`.github/workflows/ci.yml`** — **CI**: builds + tests the Soroban contracts (`cargo test`, `cargo build --target wasm32v1-none --release`) **and** lints + production-builds the Next.js frontend.
+- **`.github/workflows/deploy.yml`** — **CD**: deploys the frontend to Vercel on every push to `main`, and deploys the Soroban contracts to Stellar testnet (`scripts/deploy.sh`) on manual dispatch.
+
 ## Deployment
 
 **Live app:** https://app-silk-alpha.vercel.app
