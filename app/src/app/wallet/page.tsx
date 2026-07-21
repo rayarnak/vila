@@ -36,7 +36,6 @@ import {
   generateViewingKey,
   getStellarAddress,
   addNote,
-  signTransactionXdr,
   type StoredNote,
 } from "@/lib/noteStore";
 import {
@@ -52,6 +51,7 @@ import {
   type PoolTier,
   type SupportedToken,
 } from "@/lib/tokens";
+import { useWalletConnection } from "@/lib/walletConnection";
 
 /* ── Setup / Unlock Gate ──────────────────────────────────── */
 
@@ -422,7 +422,9 @@ function Dashboard() {
   const [activity, setActivity] = useState<StoredNote[]>([]);
   const [unspent, setUnspent] = useState<StoredNote[]>([]);
   const [addrCopied, setAddrCopied] = useState(false);
-  const stellarAddress = getStellarAddress();
+  // Prefer a connected external wallet (Freighter); fall back to the embedded key.
+  const { address: connectedAddress } = useWalletConnection();
+  const stellarAddress = connectedAddress ?? getStellarAddress();
   const publicBal = usePublicBalance(stellarAddress);
 
   // Token/tier picker state
@@ -460,7 +462,7 @@ function Dashboard() {
     setDepositError("");
 
     try {
-      const { executeDeposit } = await import("@/lib/deposit");
+      const { executeDeposit } = await import("@/lib/soroban");
       const amountRaw = BigInt(selectedTier.amount);
       const result = await executeDeposit(stellarAddress, amountRaw, selectedTier.poolId);
 
@@ -527,7 +529,9 @@ function Dashboard() {
         .setTimeout(60)
         .build();
 
-      const signedXdr = signTransactionXdr(tx.toEnvelope().toXDR("base64"), PASSPHRASE);
+      const { getSigner } = await import("@/lib/signer");
+      const signer = await getSigner();
+      const signedXdr = await signer.signXdr(tx.toEnvelope().toXDR("base64"), PASSPHRASE);
       const submitRes = await fetch(`${HORIZON}/transactions`, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },

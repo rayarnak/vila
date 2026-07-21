@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import { lockWallet, isUnlocked } from "@/lib/noteStore";
+import ConnectWallet from "@/components/ConnectWallet";
 
 interface NavItem {
   label: string;
@@ -178,7 +179,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
           <div className="flex items-center gap-3">
             {isTestnet && (
-              <div className="hidden sm:flex items-center gap-3 text-xs font-mono">
+              <div className="hidden md:flex items-center gap-3 text-xs font-mono">
                 <span className="inline-flex items-center gap-1.5 bg-[#181c25] border border-[#1e2329] px-2.5 py-1 rounded text-[#0ecb81]">
                   <span className="h-2 w-2 rounded-full bg-[#0ecb81] animate-pulse" />
                   ASP Clean Set: Active
@@ -188,6 +189,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 </span>
               </div>
             )}
+
+            {/* Stellar wallet connection (Freighter) */}
+            <ConnectWallet />
+
             {isUnlocked() && (
               <button
                 onClick={handleLock}

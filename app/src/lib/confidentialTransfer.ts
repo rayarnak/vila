@@ -32,12 +32,11 @@ export async function executeConfidentialTransfer(
 ): Promise<ConfidentialTransferResult> {
   const progress = onProgress ?? (() => { });
 
-  // 1. Load sender address from embedded keypair
+  // 1. Resolve the active signer (connected Freighter wallet or embedded key).
   progress("Preparing transfer...");
-  const { getStellarAddress, signTransactionXdr } = await import(
-    "@/lib/noteStore"
-  );
-  const senderAddress = getStellarAddress();
+  const { getSigner } = await import("@/lib/signer");
+  const signer = await getSigner();
+  const senderAddress = signer.address;
   if (!senderAddress) throw new Error("Wallet not initialized");
 
   // 2. Load sender account from Horizon
@@ -85,7 +84,7 @@ export async function executeConfidentialTransfer(
     .setTimeout(60)
     .build();
 
-  const signedXdr = signTransactionXdr(
+  const signedXdr = await signer.signXdr(
     tx.toEnvelope().toXDR("base64"),
     NETWORK_PASSPHRASE
   );

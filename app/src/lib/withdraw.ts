@@ -581,8 +581,11 @@ export async function executeWithdraw(
   progress("Submitting to network...");
   console.log("[withdraw] Fetching wallet account from Horizon...");
 
-  const { getStellarAddress } = await import("@/lib/noteStore");
-  const senderAddress = getStellarAddress();
+  // The transaction source (fee payer) is the active signer: a connected
+  // Freighter wallet when available, otherwise the embedded keypair.
+  const { getSigner } = await import("@/lib/signer");
+  const signer = await getSigner();
+  const senderAddress = signer.address;
   if (!senderAddress) throw new Error("Wallet address not found");
 
   const horizonRes = await fetch(
@@ -740,10 +743,10 @@ export async function executeWithdraw(
     preparedXDR = preparedTx.toEnvelope().toXDR("base64");
   }
 
-  // 8. Sign with embedded keypair
+  // 8. Sign the assembled transaction with the active signer.
+  //    Freighter prompts the user; the embedded keypair signs locally.
   progress("Signing transaction...");
-  const { signTransactionXdr } = await import("@/lib/noteStore");
-  const signedTxXdr = signTransactionXdr(preparedXDR, NETWORK_PASSPHRASE);
+  const signedTxXdr = await signer.signXdr(preparedXDR, NETWORK_PASSPHRASE);
 
   // 9. Submit via raw RPC
   progress("Broadcasting transaction...");

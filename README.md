@@ -4,6 +4,39 @@
 
 Vila enables shielded stablecoin transfers on Stellar using Groth16 ZK proofs verified on Soroban. Deposit XLM into a shielded pool, share a secret note with your recipient, and they withdraw privately — with zero on-chain link between depositor and recipient.
 
+## Deployment
+
+**Live app:** https://app-silk-alpha.vercel.app
+**Network:** Stellar Testnet (`Test SDF Network ; September 2015`)
+**RPC:** `https://soroban-testnet.stellar.org`
+**Deployer:** [`GC3YJTUFGFEMGXR2Q6I5XMKJ5NHPHN5SU643ABEGOEVMS4W6NBFGVW6A`](https://stellar.expert/explorer/testnet/account/GC3YJTUFGFEMGXR2Q6I5XMKJ5NHPHN5SU643ABEGOEVMS4W6NBFGVW6A)
+
+### Core Contracts (deployed & verified on-chain)
+
+| Contract | Contract ID | Explorer |
+|----------|-------------|----------|
+| **Groth16 Verifier** (BN254) | `CDKNHFXE5SSLFS4HKRWTQDORV7CCDBJGBKZ42M56OS555KTSXBAYCIBM` | [view](https://stellar.expert/explorer/testnet/contract/CDKNHFXE5SSLFS4HKRWTQDORV7CCDBJGBKZ42M56OS555KTSXBAYCIBM) |
+| **Vila Pool** (default, 100 XLM) | `CB5C4ULIVLFL3B3FBX5EPEZAAE5G7NPU3TDMEKPSEVUFTIHBONN6COA6` | [view](https://stellar.expert/explorer/testnet/contract/CB5C4ULIVLFL3B3FBX5EPEZAAE5G7NPU3TDMEKPSEVUFTIHBONN6COA6) |
+| **XLM Token** (SAC) | `CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC` | [view](https://stellar.expert/explorer/testnet/contract/CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC) |
+| **USDC Token** (SAC) | `CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA` | [view](https://stellar.expert/explorer/testnet/contract/CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA) |
+
+### Shielded Pool Tiers
+
+Each denomination is an independent pool (fixed-amount deposits maximize the anonymity set).
+
+| Tier | XLM Pool | USDC Pool |
+|------|----------|-----------|
+| 1     | `CBGJ2XWDCLDFOXDMNOW6F6UEYGX6FJKZIN5XWFYWCB67YUCFHVESTA47` | `CASQLEERSUFPWRNAQLPNNA7LWZTVED5KV5VCF5PKIAHGAQVAJ2XZORQB` |
+| 5     | `CBKXVTFTFABAI3KCHK3GE6TDB6FJYW5KPQJVBEQIM27QLUKAWFVMAB5G` | `CAVSHJP26NTVDVTKTPGCEY2HMKVTJZNOG53AEKWAMMPV322EOU6R3VQF` |
+| 10    | `CCXHA4364ET5PJQZHXXNWQXUFUOUP5MBJBYDJJ7TFC6ONKE43UEIHZ7S` | `CCOB23WLOLH4OHJGRXM5VISAPJI2HSNI5PU22LLKHQJIEU4IUTGYKRJW` |
+| 50    | `CBRTIQ5LJQVOVAM7OVI2MYCOHFZ4JE74A757IMXZOHDDRLYPVZFDR7A2` | `CBC2AFPV7NFT63FFFZT5IVNIPIEEA6JHQBFQZGTNUQIVQKNY5HBZYWJE` |
+| 100   | `CB5C4ULIVLFL3B3FBX5EPEZAAE5G7NPU3TDMEKPSEVUFTIHBONN6COA6` | `CCEXO6VBGW6MJNURQ5VKX2ONXMMWQLUYMXCPIODOZAUC6CTBME7U55NA` |
+| 250   | `CCV7XJXWJYDS7OWUATOIWJM7O7SXT2YLE3TFE5HFXJZ275FUDBXCMPR2` | `CCL43X4PAIBFSXSQKEVE35O3MDPOGXCOU5EAY6CVYW6BW2EN6LZHJKP2` |
+| 500   | `CDCRLJV6JXTUOUZNAWMGBC73FUDR43C7QLXIV6LL66ZEQMLFIGMWAPVR` | `CBM6WVWGTCAGTYVLRPHO6TYWDI2NNFE6UY3G5HU6LQ6RBDUZWKCXQ7JD` |
+| 1000  | `CCVOVLQBPSS4HAYDMHSUX522Z3DVXULDMKCBSTIOHF3PC6Q4FQEJRFVD` | `CAIK5SEX5SJJ3AJOIQFTLUTA3VA3NCTFIP7LCNUVH6WKLW4AYT7CCC57` |
+
+> All contract IDs above were confirmed **live on testnet** via `getLedgerEntries` on `soroban-testnet.stellar.org` — every contract instance is present on-chain. Redeploy with `./scripts/deploy.sh`; deployed IDs are written to `.env` / `app/.env.local`.
+
 ## Architecture
 
 ```

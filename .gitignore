@@ -14,6 +14,10 @@ circuits/build/*.r1cs
 circuits/build/*.sym
 circuits/build/withdraw_js/
 
+# Large proving keys served to the browser (multi-MB binaries — regenerate via
+# `npm run setup:ceremony`; kept out of the repo, uploaded to hosting directly)
+app/public/circuits/*.zkey
+
 # Lock files
 package-lock.json
 circuits/package-lock.json

@@ -140,6 +140,14 @@ export async function executeDeposit(
   poolContractId?: string
 ): Promise<DepositResult> {
   const ACTIVE_POOL = poolContractId || POOL_CONTRACT_ID;
+
+  // Resolve the active signer (connected Freighter wallet, else embedded key).
+  // The signer's address is the true transaction source, so it overrides any
+  // hint passed in by the caller.
+  const { getSigner } = await import("@/lib/signer");
+  const signer = await getSigner();
+  senderAddress = signer.address;
+
   // 0. Get the leaf index our deposit will occupy
   let leafIndex = await getNextLeafIndex(ACTIVE_POOL);
 
@@ -193,35 +201,50 @@ export async function executeDeposit(
   const successSim = simResponse as StellarSdk.rpc.Api.SimulateTransactionSuccessResponse;
   console.log("[deposit] simulation succeeded");
 
-  // 5. Sign Soroban auth entries, then assemble + sign envelope
-  console.log("[deposit] step 5: signing");
-  const { getActiveSecret } = await import("@/lib/noteStore");
-  const walletSecret = getActiveSecret();
-  if (!walletSecret) throw new Error("Wallet is locked");
-  const keypair = StellarSdk.Keypair.fromSecret(walletSecret);
+  // 5. Sign the transaction.
+  //   • External wallet (Freighter): assemble the transaction and let the
+  //     wallet sign the whole envelope — it handles the Soroban source-account
+  //     authorization itself and shows the user a confirmation prompt.
+  //   • Embedded keypair: pre-sign the Soroban auth entries, then assemble and
+  //     sign the envelope locally.
+  console.log(`[deposit] step 5: signing (${signer.external ? "Freighter" : "embedded"})`);
+  let signedTxXdr: string;
 
-  // Sign auth entries before assembly
-  if (successSim.result?.auth) {
-    const latestLedger = (await rpcServer.getLatestLedger()).sequence;
-    const signedAuth: StellarSdk.xdr.SorobanAuthorizationEntry[] = [];
-    for (const authEntry of successSim.result.auth) {
-      const entry = typeof authEntry === "string"
-        ? StellarSdk.xdr.SorobanAuthorizationEntry.fromXDR(authEntry, "base64")
-        : authEntry;
-      if (entry.credentials().switch().name === "sorobanCredentialsAddress") {
-        signedAuth.push(
-          await StellarSdk.authorizeEntry(entry, keypair, latestLedger + 100, NETWORK_PASSPHRASE)
-        );
-      } else {
-        signedAuth.push(entry);
+  if (signer.external) {
+    const assembled = StellarSdk.rpc.assembleTransaction(tx, successSim).build();
+    signedTxXdr = await signer.signXdr(
+      assembled.toEnvelope().toXDR("base64"),
+      NETWORK_PASSPHRASE
+    );
+  } else {
+    const { getActiveSecret } = await import("@/lib/noteStore");
+    const walletSecret = getActiveSecret();
+    if (!walletSecret) throw new Error("Wallet is locked");
+    const keypair = StellarSdk.Keypair.fromSecret(walletSecret);
+
+    // Sign auth entries before assembly
+    if (successSim.result?.auth) {
+      const latestLedger = (await rpcServer.getLatestLedger()).sequence;
+      const signedAuth: StellarSdk.xdr.SorobanAuthorizationEntry[] = [];
+      for (const authEntry of successSim.result.auth) {
+        const entry = typeof authEntry === "string"
+          ? StellarSdk.xdr.SorobanAuthorizationEntry.fromXDR(authEntry, "base64")
+          : authEntry;
+        if (entry.credentials().switch().name === "sorobanCredentialsAddress") {
+          signedAuth.push(
+            await StellarSdk.authorizeEntry(entry, keypair, latestLedger + 100, NETWORK_PASSPHRASE)
+          );
+        } else {
+          signedAuth.push(entry);
+        }
       }
+      successSim.result.auth = signedAuth;
     }
-    successSim.result.auth = signedAuth;
-  }
 
-  const assembled = StellarSdk.rpc.assembleTransaction(tx, successSim).build();
-  assembled.sign(keypair);
-  const signedTxXdr = assembled.toEnvelope().toXDR("base64");
+    const assembled = StellarSdk.rpc.assembleTransaction(tx, successSim).build();
+    assembled.sign(keypair);
+    signedTxXdr = assembled.toEnvelope().toXDR("base64");
+  }
   console.log("[deposit] step 5: signed ok");
 
   // 6. Submit via raw RPC

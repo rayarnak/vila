@@ -43,6 +43,7 @@ import { getActiveTokens, getPoolTiers, getSwapPairs, SUPPORTED_TOKENS, parseTok
 import { executeWithdraw, checkSubsetStatus } from "@/lib/withdraw";
 import { executeConfidentialTransfer } from "@/lib/confidentialTransfer";
 import type { SubsetStatus } from "@/lib/withdraw";
+import { useWalletConnection } from "@/lib/walletConnection";
 
 type SendMode = "shielded" | "confidential";
 type ShieldedSubMode = "transfer" | "self_withdraw";
@@ -483,7 +484,9 @@ export default function SendPage() {
   );
   const selectedPair = swapPairs.find((p) => p.tokenOut === swapTokenOut);
 
-  const stellarAddress = getStellarAddress();
+  // Prefer a connected external wallet (Freighter) for the payout address.
+  const { address: connectedAddress } = useWalletConnection();
+  const stellarAddress = connectedAddress ?? getStellarAddress();
 
   // Reset tier when token changes
   useEffect(() => {

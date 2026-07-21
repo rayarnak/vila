@@ -1,0 +1,11 @@
+# Vercel CLI uses THIS file for upload-ignore rules (not .gitignore).
+# We deliberately do NOT ignore public/circuits/*.zkey here, so the large
+# proving keys — which are git-ignored to keep the repo lean — still get
+# uploaded to the deployment for in-browser Groth16 proof generation.
+
+node_modules
+.next
+.git
+.vercel
+.env
+.env.local
