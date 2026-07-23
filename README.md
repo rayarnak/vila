@@ -76,8 +76,51 @@ Each frontend call maps 1:1 to a `pub fn` in the contract `lib.rs` sources:
 
 ### 4. CI/CD Workflows ✅
 
-- **`.github/workflows/ci.yml`** — **CI**: builds + tests the Soroban contracts (`cargo test`, `cargo build --target wasm32v1-none --release`) **and** lints + production-builds the Next.js frontend.
-- **`.github/workflows/deploy.yml`** — **CD**: deploys the frontend to Vercel on every push to `main`, and deploys the Soroban contracts to Stellar testnet (`scripts/deploy.sh`) on manual dispatch.
+Two tracked GitHub Actions workflows cover **both** the smart contracts and the frontend. Full sources: **`.github/workflows/ci.yml`** and **`.github/workflows/deploy.yml`** (also reproduced in **[`INTEGRATION.md`](./INTEGRATION.md)** for reviewers). Condensed:
+
+```yaml
+# .github/workflows/ci.yml — CI on push / PR to main
+jobs:
+  contracts:                      # ── Smart contracts: build + test ──
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with: { targets: wasm32v1-none }
+      - run: cargo test --all                                        # contract unit tests
+        working-directory: contracts
+      - run: cargo build --all --target wasm32v1-none --release      # wasm build
+        working-directory: contracts
+  frontend:                       # ── Frontend: lint + production build ──
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm install
+      - run: npm run build --workspace=app                           # next build
+```
+
+```yaml
+# .github/workflows/deploy.yml — CD on push to main (+ manual dispatch)
+jobs:
+  deploy-frontend:                # ── Frontend → Vercel production ──
+    runs-on: ubuntu-latest
+    env: { VERCEL_TOKEN: "${{ secrets.VERCEL_TOKEN }}" }
+    steps:
+      - uses: actions/checkout@v4
+      - run: vercel deploy --prod --yes --token="$VERCEL_TOKEN"      # live deploy
+        working-directory: app
+  deploy-contracts:               # ── Contracts → Stellar testnet (manual) ──
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - run: stellar contract build
+        working-directory: contracts
+      - run: bash scripts/deploy.sh                                  # deploy + write IDs
+```
+
+Both pipelines run green on `main`; the frontend is deployed live to Vercel on every push (see [Deployment](#deployment)).
 
 ## Deployment
 
