@@ -1,8 +1,13 @@
 name: CD
 
 # Continuous deployment:
-#   • frontend  → Vercel production on every push to main
+#   • frontend  → Vercel production on every push to main (only if secrets are set)
 #   • contracts → Stellar testnet on manual dispatch (needs deployer secret)
+#
+# Deploy steps are guarded on their required secrets so the workflow does not
+# hard-fail on forks / freshly-cloned repos that have no deployment credentials
+# configured. Add the secrets under Settings → Secrets and variables → Actions
+# to enable the corresponding deploy.
 on:
   push:
     branches: [main]
@@ -13,48 +18,76 @@ jobs:
   deploy-frontend:
     name: Deploy frontend (Vercel)
     runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check for Vercel credentials
+        id: check
+        run: |
+          if [ -n "$VERCEL_TOKEN" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::VERCEL_TOKEN secret not set — skipping Vercel deploy."
+          fi
+
       - name: Install Node.js
+        if: steps.check.outputs.enabled == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
       - name: Install Vercel CLI
+        if: steps.check.outputs.enabled == 'true'
         run: npm install -g vercel
 
       - name: Deploy to Vercel (production)
+        if: steps.check.outputs.enabled == 'true'
         working-directory: app
         run: vercel deploy --prod --yes --token="$VERCEL_TOKEN"
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
   # ── Deploy the Soroban contracts to testnet (manual) ─────────────────────
   deploy-contracts:
     name: Deploy contracts (Stellar testnet)
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    env:
+      DEPLOYER_SECRET_KEY: ${{ secrets.DEPLOYER_SECRET_KEY }}
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check for deployer credentials
+        id: check
+        run: |
+          if [ -n "$DEPLOYER_SECRET_KEY" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::DEPLOYER_SECRET_KEY secret not set — skipping contract deploy."
+          fi
+
       - name: Install Rust toolchain
+        if: steps.check.outputs.enabled == 'true'
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32v1-none
 
       - name: Install Stellar CLI
+        if: steps.check.outputs.enabled == 'true'
         run: cargo install --locked stellar-cli
 
       - name: Build contracts
+        if: steps.check.outputs.enabled == 'true'
         working-directory: contracts
         run: stellar contract build
 
       - name: Deploy to testnet
+        if: steps.check.outputs.enabled == 'true'
         run: bash scripts/deploy.sh
         env:
           STELLAR_NETWORK: testnet
           STELLAR_RPC_URL: https://soroban-testnet.stellar.org
-          DEPLOYER_SECRET_KEY: ${{ secrets.DEPLOYER_SECRET_KEY }}

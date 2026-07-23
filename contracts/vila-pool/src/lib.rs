@@ -446,9 +446,19 @@ fn i128_to_bytes32(env: &Env, val: i128) -> BytesN<32> {
     BytesN::from_array(env, &buf)
 }
 
-/// Extend TTL on all core Merkle tree persistent entries.
+/// Extend TTL on the core Merkle tree persistent entries touched by the current
+/// operation.
+///
+/// NOTE: this deliberately does NOT walk the full `ROOT_HISTORY_SIZE` root ring
+/// buffer. Every key referenced in an invocation — whether it exists or not — is
+/// charged against the transaction's ledger-entry footprint, and Soroban caps a
+/// single invocation at ~100 entries. Scanning all 100 root slots pushed the
+/// `initialize` footprint to 151 entries, which fails both in the test host and
+/// on-chain. Each root is bumped while it is the current root (in `initialize`
+/// and every `insert`), so it already receives a full TTL window before the ring
+/// rotates past it.
 fn bump_tree_ttl(env: &Env) {
-    use types::{ROOT_HISTORY_SIZE, TREE_DEPTH};
+    use types::TREE_DEPTH;
 
     // NextIndex + CurrentRootIndex
     for key in [DataKey::NextIndex, DataKey::CurrentRootIndex] {
@@ -456,19 +466,24 @@ fn bump_tree_ttl(env: &Env) {
             env.storage().persistent().extend_ttl(&key, PERSISTENT_TTL_THRESHOLD, PERSISTENT_TTL_BUMP);
         }
     }
-    // FilledSubtree entries
+    // FilledSubtree entries (fixed count = TREE_DEPTH)
     for i in 0..TREE_DEPTH {
         let key = DataKey::FilledSubtree(i);
         if env.storage().persistent().has(&key) {
             env.storage().persistent().extend_ttl(&key, PERSISTENT_TTL_THRESHOLD, PERSISTENT_TTL_BUMP);
         }
     }
-    // Root history ring buffer
-    for i in 0..ROOT_HISTORY_SIZE {
-        let key = DataKey::Root(i);
-        if env.storage().persistent().has(&key) {
-            env.storage().persistent().extend_ttl(&key, PERSISTENT_TTL_THRESHOLD, PERSISTENT_TTL_BUMP);
-        }
+    // Only the current root — bumping the whole ring would blow the footprint.
+    let current_root_index: u32 = env
+        .storage()
+        .persistent()
+        .get(&DataKey::CurrentRootIndex)
+        .unwrap_or(0);
+    let root_key = DataKey::Root(current_root_index);
+    if env.storage().persistent().has(&root_key) {
+        env.storage()
+            .persistent()
+            .extend_ttl(&root_key, PERSISTENT_TTL_THRESHOLD, PERSISTENT_TTL_BUMP);
     }
 }
 
